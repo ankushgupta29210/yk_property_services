@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ankushgupta29210.github.io/yk_property_services/sitemap.xml
