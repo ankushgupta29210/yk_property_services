@@ -5,7 +5,7 @@ from urllib.parse import quote_plus as qp
 
 ROOT = pathlib.Path(__file__).resolve().parent
 OUT = ROOT.parent  # site root = the folder above _build
-SITE_URL = "https://ankushgupta29210.github.io/yk_property_services/"
+SITE_URL = "https://ykpropertyservices.com/"
 ORIG = (ROOT / "original.html").read_text(encoding="utf-8")
 
 PHONE1, PHONE1_T = "+1 (705) 500-8455", "+17055008455"
@@ -948,9 +948,9 @@ pages.append(page("service-areas.html", "Service Area | Property Services Yellow
 </main>"""))
 
 # ---------------------------------------------------------------- PRIVACY / TERMS / THANKS / 404
-def simple(path, title, desc, eyebrow, lines, lede, prose, active="legal", ctas=""):
+def simple(path, title, desc, eyebrow, lines, lede, prose, active="legal", ctas="", extra_head=""):
     pages.append(page(path, title, desc, active, page_hero(eyebrow, lines, lede, crumbs=[(eyebrow, None)], seed=17, ctas=ctas) +
-        f'\n<main id="main"><section class="section"><div class="wrap"><div class="prose reveal">{prose}</div></div></section></main>'))
+        f'\n<main id="main"><section class="section"><div class="wrap"><div class="prose reveal">{prose}</div></div></section></main>', extra_head=extra_head))
 
 simple("privacy.html", "Privacy Policy | YK Property Services", "How information submitted through the YK Property Services website is handled.",
     "Privacy Policy", ["Privacy policy"], "How information submitted through this website is handled.", f"""
@@ -974,7 +974,28 @@ simple("thanks.html", "Thanks — Request Received | YK Property Services", "You
 simple("404.html", "Page not found | YK Property Services", "This page could not be found.",
     "Page not found", ["This page took", "a wrong turn."], "The page you were looking for isn’t here. Try one of these instead.", """
       <ul><li><a href="index.html">Home</a></li><li><a href="services.html">All services</a></li><li><a href="get-a-quote.html">Get a free quote</a></li><li><a href="contact.html">Contact</a></li></ul>""",
-    ctas='<a class="btn btn-primary" href="index.html">Go to home</a>')
+    ctas='<a class="btn btn-primary" href="index.html">Go to home</a>', extra_head='\n<base href="/">\n<meta name="robots" content="noindex">')
+
+# ---------------------------------------------------------------- redirects for the old site's URLs
+REDIRECTS = {
+    "projects/index.html": "../projects.html",
+    "projects/interior-painting-refresh.html": "../projects.html#paint",
+    "projects/entryway-maintenance.html": "../projects.html#maint",
+    "projects/rental-unit-reset.html": "../projects.html#turnover",
+    "projects/move-out-kitchen-clean.html": "../projects.html#clean",
+    "projects/commercial-reception-refresh.html": "../projects.html#commercial",
+    "host-dashboard.html": "airbnb-hosts.html",
+}
+for src, dest in REDIRECTS.items():
+    f = OUT / src
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Redirecting…</title>
+<meta name="robots" content="noindex"><meta http-equiv="refresh" content="0; url={dest}">
+<link rel="canonical" href="{SITE_URL}{dest.replace('../', '').split('#')[0]}">
+<script>location.replace("{dest}");</script></head>
+<body><p>This page has moved. <a href="{dest}">Continue</a>.</p></body></html>
+""", encoding="utf-8")
+(OUT / "CNAME").write_text("ykpropertyservices.com\n", encoding="utf-8")
 
 # ---------------------------------------------------------------- sitemap / robots
 urls = [p for p in pages if p not in ("thanks.html", "404.html")]
