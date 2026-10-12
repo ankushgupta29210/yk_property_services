@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generates the static YK Property Services site into ../site."""
-import json, pathlib, re
+import datetime, json, pathlib, re
 from urllib.parse import quote_plus as qp
 
 ROOT = pathlib.Path(__file__).resolve().parent
@@ -88,8 +88,15 @@ FAQ_HOME = [
 ]
 
 # ---------------------------------------------------------------- Layout pieces
-def head(title, desc, path, home=False, extra=""):
-    canon = SITE_URL + ("" if path == "index.html" else path)
+def url_for(path):
+    """Clean public URL (GitHub Pages serves /painting for painting.html), matching the old site's indexed URLs."""
+    p = path[:-10] if path.endswith("index.html") else (path[:-5] if path.endswith(".html") else path)
+    return SITE_URL + p
+
+OG_IMAGE = SITE_URL + "assets/og-image.png"
+
+def head(title, desc, path, home=False, extra="", noindex=False):
+    canon = url_for(path)
     boot = ("""<script>
   (function () {
     var d = document.documentElement;
@@ -101,21 +108,33 @@ def head(title, desc, path, home=False, extra=""):
   })();
 </script>""" if home else "<script>document.documentElement.classList.add('js');</script>")
     return f"""<!doctype html>
-<html lang="en">
+<html lang="en-CA">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <meta name="description" content="{desc}">
 <link rel="canonical" href="{canon}">
+<meta name="robots" content="{'noindex, follow' if noindex else 'index, follow, max-image-preview:large'}">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{desc}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="{canon}">
 <meta property="og:site_name" content="YK Property Services">
-<meta name="twitter:card" content="summary">
+<meta property="og:locale" content="en_CA">
+<meta property="og:image" content="{OG_IMAGE}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="YK Property Services — painting, repairs, cleaning and maintenance in Yellowknife, NT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{title}">
+<meta name="twitter:description" content="{desc}">
+<meta name="twitter:image" content="{OG_IMAGE}">
 <meta name="theme-color" content="#06132E">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D66'/%3E%3Cpath d='M12 38 32 20 52 38' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M48 5l1.8 5.4 5.4 1.8-5.4 1.8L48 19.4l-1.8-5.4-5.4-1.8 5.4-1.8z' fill='%234EF0B8'/%3E%3Crect x='27' y='40' width='10' height='12' rx='1' fill='white'/%3E%3C/svg%3E">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -579,8 +598,27 @@ def contact_section(title="Get a quote", intro="Tell us what you need and where.
     </div>
   </section>"""
 
-def page(path, title, desc, active, body, home=False, extra_head=""):
-    html = head(title, desc, path, home, extra_head) + header(active) + body + footer()
+BUSINESS_ID = SITE_URL + "#business"
+
+def ld_script(obj):
+    return '\n<script type="application/ld+json">' + json.dumps(obj, ensure_ascii=False) + "</script>"
+
+def breadcrumbs_ld(path, title_text, body):
+    m = re.search(r'<nav class="crumbs"[^>]*>(.*?)</nav>', body, re.S)
+    if not m:
+        return ""
+    items = [("Home", SITE_URL)]
+    for href, text in re.findall(r'<a href="([^"]+)">([^<]+)</a>', m.group(1))[1:]:
+        items.append((text, url_for(href)))
+    last = re.findall(r"<span>([^<]+)</span>", m.group(1))
+    if last:
+        items.append((last[-1], url_for(path)))
+    return ld_script({"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+        {"@type": "ListItem", "position": i + 1, "name": re.sub(r"&amp;", "&", n), "item": u} for i, (n, u) in enumerate(items)]})
+
+def page(path, title, desc, active, body, home=False, extra_head="", ld=(), noindex=False):
+    lds = "".join(ld_script(o) for o in ld) + breadcrumbs_ld(path, title, body)
+    html = head(title, desc, path, home, extra_head + lds, noindex) + header(active) + body + footer()
     (OUT / path).write_text(html, encoding="utf-8")
     return path
 
@@ -599,20 +637,26 @@ process_sec = process_sec.replace("No forms to fill out and no runaround. Send a
     "No runaround. Send a message or the quote form and we'll take it from there.").replace(
     "WhatsApp, call or email us. A few photos help us understand it faster.", "Use the quote form, WhatsApp, call or email. A few photos help us understand it faster.")
 local_ld = {
-    "@context": "https://schema.org", "@type": "HomeAndConstructionBusiness", "name": "YK Property Services",
+    "@context": "https://schema.org", "@type": "HomeAndConstructionBusiness", "@id": BUSINESS_ID, "name": "YK Property Services",
+    "slogan": "One call. Every property need.", "image": OG_IMAGE, "logo": SITE_URL + "assets/apple-touch-icon.png",
+    "contactPoint": [{"@type": "ContactPoint", "telephone": PHONE1_T, "contactType": "customer service", "areaServed": "CA", "availableLanguage": "English"},
+                     {"@type": "ContactPoint", "telephone": PHONE2_T, "contactType": "customer service", "areaServed": "CA", "availableLanguage": "English"}],
+    "knowsAbout": [s["name"] for s in S],
     "description": "Painting, repairs, maintenance, cleaning, rental turnovers and seasonal property services in Yellowknife, NT.",
     "url": SITE_URL, "telephone": PHONE1_T, "email": EMAIL,
     "address": {"@type": "PostalAddress", "streetAddress": "1000 Gitzel Street", "addressLocality": "Yellowknife", "addressRegion": "NT", "postalCode": "X1A 2C5", "addressCountry": "CA"},
-    "areaServed": "Yellowknife, Northwest Territories",
+    "areaServed": {"@type": "City", "name": "Yellowknife", "containedInPlace": {"@type": "AdministrativeArea", "name": "Northwest Territories"}},
+    "geo": {"@type": "GeoCoordinates", "latitude": 62.4540, "longitude": -114.3718},
     "openingHoursSpecification": [{"@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], "opens": "08:00", "closes": "18:00"}],
 }
 faq_ld = {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in FAQ_HOME]}
-ld = f'\n<script type="application/ld+json">{json.dumps(local_ld)}</script>\n<script type="application/ld+json">{json.dumps(faq_ld)}</script>'
+website_ld = {"@context": "https://schema.org", "@type": "WebSite", "name": "YK Property Services", "url": SITE_URL, "publisher": {"@id": BUSINESS_ID}, "inLanguage": "en-CA"}
 
 home_body = f"""
 <header class="hero" id="top">
 {hero_canvas()}
   <div class="wrap hero-inner" id="heroInner">
+    <p class="eyebrow light">Property services in Yellowknife, NT</p>
     <h1 class="headline" data-roller aria-label="One call. Every property need.">
       <span class="line" aria-hidden="true"><span class="stroke"></span><span class="txt">One call.</span></span><br>
       <span class="line" aria-hidden="true"><span class="stroke"></span><span class="txt">Every property</span></span>
@@ -667,12 +711,12 @@ home_body = f"""
   {contact_section(extra='<p class="callout" style="margin-top:1.4rem"><strong>Need multiple things done?</strong>Include everything in one request and we’ll organize it into as few visits as possible.</p>')}
 </main>
 """
-pages.append(page("index.html", "YK Property Services | Painting, Cleaning & Maintenance in Yellowknife",
-    "Painting, repairs, maintenance, cleaning, rental turnovers and seasonal services in Yellowknife, NT — one reliable local team. Free estimates. Call (705) 500-8455.",
-    "home", home_body, home=True, extra_head=ld))
+pages.append(page("index.html", "YK Property Services – Yellowknife Painting, Repairs & Cleaning",
+    "Painting, repairs, cleaning, rental turnovers and property maintenance in Yellowknife, NT — one reliable local team. Free estimates. Call (705) 500-8455.",
+    "home", home_body, home=True, ld=[local_ld, website_ld, faq_ld]))
 
 # ---------------------------------------------------------------- SERVICES overview
-pages.append(page("services.html", "Property Services Yellowknife | YK Property Services",
+pages.append(page("services.html", "Property Services in Yellowknife, NT | YK Property Services",
     "Painting, repairs, maintenance, cleaning, rental turnovers, Airbnb host services, seasonal work, commercial service and junk removal in Yellowknife.",
     "services", page_hero("YK Property Services", ["Complete property", "services in Yellowknife"],
         "From a single repair to coordinated year-round care, we make it easier to keep your home, rental or commercial property ready.",
@@ -693,7 +737,7 @@ pages.append(page("services.html", "Property Services Yellowknife | YK Property 
 # ---------------------------------------------------------------- Service pages
 SERVICE_PAGES = {
     "painting": dict(
-        title="Painters Yellowknife | Interior & Exterior Painting | YK Property Services",
+        title="Painters in Yellowknife, NT | YK Property Services",
         desc="Professional interior, exterior, apartment, cabinet and commercial painting in Yellowknife, NT. Careful prep, clean finishes, free estimates.",
         eyebrow="Painting &amp; finishing", lines=["Professional painting", "in Yellowknife"],
         lede="Careful preparation, clean finishes and dependable scheduling for homes, rental units, offices and commercial properties.",
@@ -703,8 +747,8 @@ SERVICE_PAGES = {
         cat="Painting &amp; finishing", related=["drywall-repairs", "rental-turnovers", "commercial-services"],
         cta=("Refresh your property — get a free painting estimate", "Tell us which rooms or surfaces, and send a few photos if you can.")),
     "drywall-repairs": dict(
-        title="Drywall Repair & Handyman Services Yellowknife | YK Property Services",
-        desc="Drywall patching, hole repairs, caulking, door adjustments, flooring, light fixtures and general handyman work in Yellowknife homes, rentals and commercial spaces.",
+        title="Drywall Repair & Handyman Yellowknife | YK Property Services",
+        desc="Drywall patching, hole repairs, caulking, door adjustments, flooring, light fixtures and handyman work for Yellowknife homes, rentals and businesses.",
         eyebrow="Drywall &amp; repairs", lines=["Walls fixed right,", "repairs done once"],
         lede="From a single doorknob hole to a full wall after a move-out, we patch, texture, seal and repair so your property looks like the damage never happened.",
         list_title="Repairs we handle", list_intro="Send us your whole repair list — the one that builds up over winter — and we’ll group the work into as few visits as possible.",
@@ -713,7 +757,7 @@ SERVICE_PAGES = {
         cat="Drywall &amp; repairs", related=["painting", "property-maintenance", "rental-turnovers"],
         cta=("Tell us what needs fixing", "List everything, add photos, and we’ll send a clear estimate.")),
     "property-maintenance": dict(
-        title="Property Maintenance & Handyman Yellowknife | YK Property Services",
+        title="Property Maintenance Yellowknife | YK Property Services",
         desc="Reliable home repairs, handyman work, inspections and recurring property maintenance in Yellowknife for homeowners, landlords and commercial properties.",
         eyebrow="Property maintenance", lines=["Reliable maintenance", "without the hassle"],
         lede="A practical local resource for the small repairs, inspections and ongoing work that keep a property functioning well.",
@@ -724,7 +768,7 @@ SERVICE_PAGES = {
         cat="Property maintenance", related=["drywall-repairs", "seasonal-services", "commercial-services"],
         cta=("Take the hassle out of property maintenance", "Tell us about the property and how often you need us.")),
     "rental-turnovers": dict(
-        title="Rental Turnover Yellowknife | YK Rental Reset | YK Property Services",
+        title="Rental Turnover Services Yellowknife | YK Rental Reset",
         desc="Coordinated rental turnover painting, repairs, cleaning, garbage removal and inspections in Yellowknife. One call to get your rental ready for the next tenant.",
         eyebrow="YK Rental Reset", lines=["Tenant moved out?", "We’ll handle the rest."],
         lede="Prepare your rental for the next tenant through one coordinated service — fewer calls, clearer scheduling and one point of contact.",
@@ -738,8 +782,8 @@ SERVICE_PAGES = {
         cat="Rental turnovers", related=["cleaning", "junk-removal", "property-maintenance"],
         cta=("Turn the unit around with one reliable team", "Send the move-out date, unit size and anything you already know needs fixing."), cta_label="Book a Rental Reset"),
     "airbnb-hosts": dict(
-        title="Airbnb Cleaning & Turnover Yellowknife | YK Property Services",
-        desc="Short-term rental turnover cleaning, linen changes, guest-ready checks, photo reports, repairs and winter property care for Airbnb and VRBO hosts in Yellowknife.",
+        title="Airbnb Cleaning & Turnovers Yellowknife | YK Property Services",
+        desc="Airbnb and VRBO turnover cleaning, linen changes, photo reports, quick repairs and winter property care for short-term rental hosts in Yellowknife.",
         eyebrow="Airbnb &amp; short-term rental hosts", lines=["Guest-ready", "every time."],
         lede="Turnover cleaning, quick repairs and seasonal property care for Airbnb and VRBO hosts — so you can protect your reviews without coordinating multiple contractors.",
         ctas=f'<a class="btn btn-primary" href="get-a-quote.html?service=Airbnb+%2F+short-term+rental+turnover&property=Airbnb+%2F+short-term+rental#quote">Get a host quote</a><a class="btn btn-ghost" href="{WA_MSG}" target="_blank" rel="noopener">{ico("chat")}WhatsApp us</a>',
@@ -749,7 +793,7 @@ SERVICE_PAGES = {
         extra="airbnb", scene=None, cat="Airbnb host services", related=["cleaning", "seasonal-services", "drywall-repairs"],
         cta=("Keep your listing guest-ready", "Send us your property details, booking frequency and turnover times."), cta_label="Get a host quote"),
     "cleaning": dict(
-        title="Cleaning Services Yellowknife | Move-Out & Deep Cleaning | YK Property Services",
+        title="Cleaning Services Yellowknife | Move-Out & Deep Cleaning",
         desc="Move-out, move-in, deep, regular, turnover, office and post-renovation cleaning in Yellowknife homes, rentals and businesses.",
         eyebrow="Cleaning services", lines=["A cleaner property,", "ready for what’s next"],
         lede="Thorough, practical cleaning for homes, rentals, cabins, renovation projects and commercial spaces throughout Yellowknife.",
@@ -759,7 +803,7 @@ SERVICE_PAGES = {
         cat="Cleaning services", related=["rental-turnovers", "airbnb-hosts", "junk-removal"],
         cta=("Tell us what needs cleaning", "Square footage or number of rooms, and the date you need it done.")),
     "seasonal-services": dict(
-        title="Seasonal Property Services Yellowknife | Snow Clearing & Yard Cleanup",
+        title="Snow Clearing & Yard Cleanup Yellowknife | YK Property Services",
         desc="Snow clearing, entrance clearing, spring and fall yard cleanup, staining, pressure washing, seasonal checks and exterior maintenance in Yellowknife.",
         eyebrow="Seasonal services", lines=["Ready for every", "northern season"],
         lede="Freeze-up, deep winter, spring thaw and summer growth — we keep Yellowknife properties clear, safe and presentable through every season.",
@@ -769,8 +813,8 @@ SERVICE_PAGES = {
         cat="Seasonal services", related=["property-maintenance", "painting", "junk-removal"],
         cta=("Plan your seasonal care", "Tell us the property, the season and how often you need us.")),
     "commercial-services": dict(
-        title="Commercial Painting & Property Services Yellowknife | YK Property Services",
-        desc="Commercial painting, repairs, cleaning and maintenance for Yellowknife offices, retail, restaurants, warehouses and apartment buildings. Service contracts and monthly invoicing.",
+        title="Commercial Property Services Yellowknife | YK Property Services",
+        desc="Commercial painting, repairs, cleaning and maintenance for Yellowknife offices, retail, restaurants and apartment buildings. Service contracts available.",
         eyebrow="Commercial services", lines=["Property services for", "Yellowknife businesses"],
         lede="Flexible maintenance and improvement support for retail stores, offices, restaurants, warehouses, apartment buildings, commercial landlords and property managers.",
         list_title="What we can take care of", list_intro="We schedule around your hours — after-hours and weekend work can be arranged to keep disruption low.",
@@ -780,7 +824,7 @@ SERVICE_PAGES = {
         cat="Commercial services", related=["painting", "property-maintenance", "cleaning"],
         cta=("Request a commercial service quote", "Tell us about the property, the work and your preferred schedule.")),
     "junk-removal": dict(
-        title="Junk Removal Yellowknife | Property Cleanouts | YK Property Services",
+        title="Junk Removal & Cleanouts Yellowknife | YK Property Services",
         desc="Full property cleanouts, furniture and appliance removal, garage and basement clearouts, renovation debris and rental turnover waste removal in Yellowknife.",
         eyebrow="Junk removal", lines=["Clutter gone,", "space back"],
         lede="Move-outs, estates, renovations and years of stored-up stuff — we clear it out, haul it away and dispose of it responsibly so the space is usable again.",
@@ -790,6 +834,11 @@ SERVICE_PAGES = {
         cat="Junk removal", related=["cleaning", "rental-turnovers", "seasonal-services"],
         cta=("Get junk hauled away", "Photos of the pile are the fastest way to a price.")),
 }
+
+HOST_FAQ = [("Can you handle same-day turnovers?", "Tell us your check-out and check-in times when you request a quote and we’ll confirm what scheduling works for your property."),
+            ("Do I need to be in Yellowknife?", "No. Photo reports after each visit help out-of-town hosts see the condition of their unit."),
+            ("Do you supply linens and guest supplies?", "We can change linens and restock items you provide. Mention your setup in the quote form."),
+            ("Can you help in winter?", "Yes. Snow clearing at entrances and walkways and property checks are available for short-term rentals.")]
 
 def airbnb_extra():
     feats = [("bolt", "Same-day turnovers", "Check-out to check-in cleaning so your listing stays guest-ready between bookings."),
@@ -802,7 +851,8 @@ def airbnb_extra():
     plans = [("Per-turnover service", "Book cleaning and resets as your guests check out. Ideal for occasional bookings or trying us out."),
              ("Recurring host agreement", "Ongoing turnovers, seasonal care and repairs with one point of contact. Pricing is quoted per property.")]
     plan_cards = "".join(f'<div class="card reveal"><span class="ibox">{ico("repeat" if k else "calendar")}</span><h3>{t}</h3><p>{d}</p></div>' for k, (t, d) in enumerate(plans))
-    host_faq = [("Can you handle same-day turnovers?", "Tell us your check-out and check-in times when you request a quote and we’ll confirm what scheduling works for your property."),
+    host_faq = HOST_FAQ
+    _unused = [("Can you handle same-day turnovers?", "Tell us your check-out and check-in times when you request a quote and we’ll confirm what scheduling works for your property."),
                 ("Do I need to be in Yellowknife?", "No. Photo reports after each visit help out-of-town hosts see the condition of their unit."),
                 ("Do you supply linens and guest supplies?", "We can change linens and restock items you provide. Mention your setup in the quote form."),
                 ("Can you help in winter?", "Yes. Snow clearing at entrances and walkways and property checks are available for short-term rentals.")]
@@ -838,10 +888,18 @@ for slug, d in SERVICE_PAGES.items():
     body += reviews(d["cat"], alt=not d.get("scene"))
     body += related(d["related"])
     body += cta_band(d["cta"][0], d["cta"][1], d.get("cta_label", "Get a free quote"), f'get-a-quote.html?service={qp(s["quote"])}#quote')
-    pages.append(page(f"{slug}.html", d["title"], d["desc"], slug, hero + '\n<main id="main">' + body + "\n</main>"))
+    svc_ld = {"@context": "https://schema.org", "@type": "Service", "name": f'{s["name"]} in Yellowknife', "serviceType": s["name"],
+              "description": d["desc"], "url": url_for(f"{slug}.html"), "provider": {"@type": "HomeAndConstructionBusiness", "@id": BUSINESS_ID, "name": "YK Property Services", "url": SITE_URL, "telephone": PHONE1_T},
+              "areaServed": {"@type": "City", "name": "Yellowknife", "containedInPlace": {"@type": "AdministrativeArea", "name": "Northwest Territories"}},
+              "hasOfferCatalog": {"@type": "OfferCatalog", "name": s["name"], "itemListElement": [
+                  {"@type": "Offer", "itemOffered": {"@type": "Service", "name": re.sub(r"&amp;", "&", it)}} for it in d["items"]]}}
+    lds = [svc_ld]
+    if d.get("extra") == "airbnb":
+        lds.append({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in HOST_FAQ]})
+    pages.append(page(f"{slug}.html", d["title"], d["desc"], slug, hero + '\n<main id="main">' + body + "\n</main>", ld=lds))
 
 # ---------------------------------------------------------------- PROJECTS
-pages.append(page("projects.html", "Project Examples | Before & After | YK Property Services Yellowknife",
+pages.append(page("projects.html", "Before & After Projects | YK Property Services Yellowknife",
     "Before-and-after examples of painting, repairs, rental turnovers, cleaning, commercial, seasonal and junk removal work by YK Property Services in Yellowknife.",
     "projects", page_hero("Project gallery", ["Before &amp; after,", "at a glance"],
         "Explore what a thoughtful property refresh can look like across our services. Drag each slider to compare.",
@@ -892,7 +950,7 @@ tiles = f"""<div class="tiles">
       </div>"""
 pages.append(page("contact.html", "Contact YK Property Services | Yellowknife",
     "Call +1 (705) 500-8455, WhatsApp or email servicesykproperty@gmail.com. Monday to Saturday, 8 AM – 6 PM. Serving Yellowknife and surrounding areas.",
-    "contact", page_hero("Contact", ["Let’s talk about", "your property"],
+    "contact", ld=[local_ld], body=page_hero("Contact", ["Let’s talk about", "your property"],
         "Call, message, email or send a quote request. Need multiple things done? Send us your list and we’ll help organize the job.",
         crumbs=[("Contact", None)], seed=14,
         ctas=f'<a class="btn btn-primary" href="tel:{PHONE1_T}">{ico("phone")}Call {PHONE1}</a><a class="btn btn-ghost" href="{WA_MSG}" target="_blank" rel="noopener">{ico("chat")}WhatsApp</a><a class="btn btn-ghost" href="get-a-quote.html">Get a free quote</a>') + f"""
@@ -906,8 +964,8 @@ pages.append(page("contact.html", "Contact YK Property Services | Yellowknife",
 # ---------------------------------------------------------------- GET A QUOTE
 side = """<p class="callout" style="margin-top:1.4rem"><strong>Send your complete list.</strong>Need multiple things done? Include everything in your description. Photos help us understand the condition and scope before following up.</p>
         <p class="callout"><strong>Looking for ongoing support?</strong>Mention recurring maintenance, rental turnover frequency or the number of commercial properties in your request.</p>"""
-pages.append(page("get-a-quote.html", "Free Property Service Quote | YK Property Services Yellowknife",
-    "Request a free estimate for painting, repairs, maintenance, cleaning, rental turnovers, seasonal work or junk removal in Yellowknife. Upload a photo with your request.",
+pages.append(page("get-a-quote.html", "Get a Free Quote | YK Property Services Yellowknife",
+    "Request a free estimate for painting, repairs, cleaning, rental turnovers, seasonal work or junk removal in Yellowknife. Add a photo to your request.",
     "quote", page_hero("Free estimate", ["Tell us what your", "property needs"],
         "Every property is different. Share the details and we’ll provide a clear estimate before work begins.",
         crumbs=[("Get a quote", None)], seed=15, snow="#061430",
@@ -923,9 +981,9 @@ pages.append(page("get-a-quote.html", "Free Property Service Quote | YK Property
 </main>"""))
 
 # ---------------------------------------------------------------- SERVICE AREA
-pages.append(page("service-areas.html", "Service Area | Property Services Yellowknife, NT | YK Property Services",
+pages.append(page("service-areas.html", "Service Area: Yellowknife, NT | YK Property Services",
     "YK Property Services serves Yellowknife and surrounding areas — homes, rentals, multi-unit buildings and commercial properties. Monday to Saturday, 8 AM – 6 PM.",
-    "areas", page_hero("Service area", ["Local property services", "in Yellowknife"],
+    "areas", ld=[local_ld], body=page_hero("Service area", ["Local property services", "in Yellowknife"],
         "We serve Yellowknife and surrounding areas, and understand the scheduling, seasonal and property-care needs of the North.",
         crumbs=[("Service area", None)], seed=16) + f"""
 <main id="main">
@@ -935,6 +993,7 @@ pages.append(page("service-areas.html", "Service Area | Property Services Yellow
         <p class="eyebrow">Where we work</p>
         <h2>Yellowknife and surrounding areas</h2>
         <p>Homes, rentals, cabins, multi-unit buildings and commercial properties across Yellowknife, plus nearby communities around the city. Send your property location and project details and the team will confirm availability.</p>
+        <p>We work in every part of the city, including <strong>Old Town, Latham Island, Downtown, Frame Lake, Range Lake, Niven Lake and Kam Lake</strong> — from apartment turnovers downtown to cabin opening and closing outside town.</p>
         <p style="margin-top:1.4rem"><a class="btn btn-primary" href="get-a-quote.html">Check service availability</a></p>
       </div>
       <div class="tiles" style="grid-template-columns:1fr 1fr">
@@ -948,8 +1007,8 @@ pages.append(page("service-areas.html", "Service Area | Property Services Yellow
 </main>"""))
 
 # ---------------------------------------------------------------- PRIVACY / TERMS / THANKS / 404
-def simple(path, title, desc, eyebrow, lines, lede, prose, active="legal", ctas="", extra_head=""):
-    pages.append(page(path, title, desc, active, page_hero(eyebrow, lines, lede, crumbs=[(eyebrow, None)], seed=17, ctas=ctas) +
+def simple(path, title, desc, eyebrow, lines, lede, prose, active="legal", ctas="", extra_head="", noindex=False):
+    pages.append(page(path, title, desc, active, noindex=noindex, body= page_hero(eyebrow, lines, lede, crumbs=[(eyebrow, None)], seed=17, ctas=ctas) +
         f'\n<main id="main"><section class="section"><div class="wrap"><div class="prose reveal">{prose}</div></div></section></main>', extra_head=extra_head))
 
 simple("privacy.html", "Privacy Policy | YK Property Services", "How information submitted through the YK Property Services website is handled.",
@@ -970,11 +1029,11 @@ simple("thanks.html", "Thanks — Request Received | YK Property Services", "You
       <h2>What happens next</h2>
       <ul><li>We review your details and any photo you sent.</li><li>We contact you by your preferred method with questions or a written estimate.</li><li>Once you approve, we book a convenient service date.</li></ul>
       <p>Need it sooner? Call <a href="tel:{PHONE1_T}">{PHONE1}</a> or <a href="{WA_MSG}" target="_blank" rel="noopener">message us on WhatsApp</a>.</p>""",
-    ctas='<a class="btn btn-primary" href="index.html">Back to home</a>')
+    ctas='<a class="btn btn-primary" href="index.html">Back to home</a>', noindex=True)
 simple("404.html", "Page not found | YK Property Services", "This page could not be found.",
     "Page not found", ["This page took", "a wrong turn."], "The page you were looking for isn’t here. Try one of these instead.", """
       <ul><li><a href="index.html">Home</a></li><li><a href="services.html">All services</a></li><li><a href="get-a-quote.html">Get a free quote</a></li><li><a href="contact.html">Contact</a></li></ul>""",
-    ctas='<a class="btn btn-primary" href="index.html">Go to home</a>', extra_head='\n<base href="/">\n<meta name="robots" content="noindex">')
+    ctas='<a class="btn btn-primary" href="index.html">Go to home</a>', extra_head='\n<base href="/">', noindex=True)
 
 # ---------------------------------------------------------------- redirects for the old site's URLs
 REDIRECTS = {
@@ -991,16 +1050,27 @@ for src, dest in REDIRECTS.items():
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Redirecting…</title>
 <meta name="robots" content="noindex"><meta http-equiv="refresh" content="0; url={dest}">
-<link rel="canonical" href="{SITE_URL}{dest.replace('../', '').split('#')[0]}">
+<link rel="canonical" href="{url_for(dest.replace('../', '').split('#')[0])}">
 <script>location.replace("{dest}");</script></head>
 <body><p>This page has moved. <a href="{dest}">Continue</a>.</p></body></html>
 """, encoding="utf-8")
 (OUT / "CNAME").write_text("ykpropertyservices.com\n", encoding="utf-8")
 
+# ---------------------------------------------------------------- icons, share image, manifest
+import shutil
+STATIC = ROOT / "static"
+if STATIC.exists():
+    for f in STATIC.iterdir():
+        shutil.copy(f, OUT / ("favicon.ico" if f.name == "favicon.ico" else "assets/" + f.name))
+(OUT / "site.webmanifest").write_text(json.dumps({
+    "name": "YK Property Services", "short_name": "YK Property", "start_url": "/", "display": "standalone",
+    "background_color": "#06132E", "theme_color": "#06132E",
+    "icons": [{"src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png"}]}, indent=2), encoding="utf-8")
+
 # ---------------------------------------------------------------- sitemap / robots
 urls = [p for p in pages if p not in ("thanks.html", "404.html")]
 sm = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + "".join(
-    f"  <url><loc>{SITE_URL}{'' if p == 'index.html' else p}</loc></url>\n" for p in urls) + "</urlset>\n"
+    f"  <url><loc>{url_for(p)}</loc><lastmod>{datetime.date.today().isoformat()}</lastmod></url>\n" for p in urls) + "</urlset>\n"
 (OUT / "sitemap.xml").write_text(sm, encoding="utf-8")
 (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}sitemap.xml\n", encoding="utf-8")
 print(len(pages), "pages:", ", ".join(pages))
