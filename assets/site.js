@@ -606,7 +606,7 @@
   if (assist) {
     const log = $('.assist-log', assist);
     const input = $('#assistInput');
-    const Q = 'get-a-quote.html';
+    const Q = 'get-a-quote.html#quote';
     const KB = [
       { k: ['turnover', 'rental reset', 'tenant', 'move-out', 'move out', 'between tenants', 'vacant'], a: `<p><strong>YK Rental Reset</strong> gets a unit from move-out to move-in ready with one call:</p><ul><li>Unit inspection and photos</li><li>Drywall patching and painting</li><li>Cleaning and garbage removal</li><li>Minor repairs, hardware and fixture checks</li><li>Final walkthrough with photo documentation</li></ul><p>Tell us the move-out date and unit size and we'll schedule it. <a href="rental-turnovers.html">How turnovers work →</a></p>` },
       { k: ['winter', 'cold', 'paint in', 'season to paint', 'january', 'december', 'february'], a: `<p>Yes — interior painting runs all year. Winter is actually a great time for it: we can repaint rooms, patch drywall and seal drafts while it's minus thirty outside.</p><p>Exterior painting and deck or fence staining are booked for the warmer months. <a href="painting.html">Painting services →</a></p>` },

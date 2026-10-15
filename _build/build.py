@@ -178,7 +178,7 @@ def header(active):
       <a href="projects.html"{cur("projects")}>Projects</a>
       <a href="about.html"{cur("about")}>About</a>
       <a href="contact.html"{cur("contact")}>Contact</a>
-      <a class="btn btn-primary" href="get-a-quote.html">Get a free quote</a>
+      <a class="btn btn-primary" href="get-a-quote.html#quote">Get a free quote</a>
       <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="mnav" aria-label="Open menu"><span></span></button>
     </div>
   </nav>
@@ -193,7 +193,7 @@ def header(active):
   <a href="about.html">About</a>
   <a href="service-areas.html">Service area</a>
   <a href="contact.html">Contact</a>
-  <a class="btn btn-primary" href="get-a-quote.html">Get a free quote</a>
+  <a class="btn btn-primary" href="get-a-quote.html#quote">Get a free quote</a>
   <a class="btn btn-ghost" href="tel:{PHONE1_T}">{ico("phone")}Call {PHONE1}</a>
 </div>
 """
@@ -227,7 +227,7 @@ def footer():
         <h4>Company</h4>
         <div class="flinks">
           <a href="index.html">Home</a><a href="services.html">All services</a><a href="projects.html">Projects</a><a href="about.html">About</a>
-          <a href="service-areas.html">Service area</a><a href="contact.html">Contact</a><a href="get-a-quote.html">Get a quote</a>
+          <a href="service-areas.html">Service area</a><a href="contact.html">Contact</a><a href="get-a-quote.html#quote">Get a quote</a>
         </div>
       </div>
     </div>
@@ -244,7 +244,7 @@ def footer():
 <nav class="mbar" aria-label="Quick actions">
   <a href="tel:{PHONE1_T}">{ico("phone")}Call</a>
   <a href="{WA_MSG}" target="_blank" rel="noopener">{ico("chat")}WhatsApp</a>
-  <a class="q" href="get-a-quote.html">Get a quote</a>
+  <a class="q" href="get-a-quote.html#quote">Get a quote</a>
 </nav>
 
 <button class="assist-btn" id="assistBtn" type="button" aria-expanded="false" aria-controls="assist">{ico("spark")}<span>Ask YK</span></button>
@@ -264,7 +264,7 @@ def footer():
     </div>
   </div>
   <form class="assist-form" id="assistForm"><input id="assistInput" autocomplete="off" placeholder="Ask about a service, a repair or a turnover…" aria-label="Your question"><button type="submit" aria-label="Send">{ico("send")}</button></form>
-  <div class="assist-foot"><button type="button" id="assistClear">Clear chat</button><span>Estimates are always confirmed by our team. <a href="get-a-quote.html">Get a free quote</a></span></div>
+  <div class="assist-foot"><button type="button" id="assistClear">Clear chat</button><span>Estimates are always confirmed by our team. <a href="get-a-quote.html#quote">Get a free quote</a></span></div>
 </div>
 
 <script src="assets/site.js" defer></script>
@@ -291,7 +291,7 @@ def page_hero(eyebrow, lines, lede, crumbs=None, ctas=None, seed=3, snow="#EEF3F
         crumb_html = '<nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Home</a>' + "".join(
             f' / <a href="{h}">{t}</a>' if h else f" / <span>{t}</span>" for t, h in crumbs) + "</nav>"
     if ctas is None:
-        ctas = f'<a class="btn btn-primary" href="get-a-quote.html">Get a free estimate</a><a class="btn btn-ghost" href="tel:{PHONE1_T}">{ico("phone")}Call {PHONE1}</a>'
+        ctas = f'<a class="btn btn-primary" href="get-a-quote.html#quote">Get a free estimate</a><a class="btn btn-ghost" href="tel:{PHONE1_T}">{ico("phone")}Call {PHONE1}</a>'
     return f"""
 <header class="hero page-hero" id="top" data-seed="{seed}" data-snow="{snow}">
 {hero_canvas()}
@@ -384,7 +384,7 @@ def faq(items, alt=False, title="Good to know before we begin", eyebrow="Common 
     </div>
   </section>"""
 
-def cta_band(title="One call. One dependable local team.", text="Tell us what your property needs and we’ll organize the next steps.", label="Get a free quote", href="get-a-quote.html"):
+def cta_band(title="One call. One dependable local team.", text="Tell us what your property needs and we’ll organize the next steps.", label="Get a free quote", href="get-a-quote.html#quote"):
     return f"""
   <section class="section cta-band">
     <div class="wrap reveal">
@@ -520,7 +520,7 @@ def estimator_section():
               <ul id="eScope"></ul>
             </div>
             <p class="est-disclaim">This is a general guide, not a price. Every property is different — we’ll give you a clear written estimate before any work begins.</p>
-            <div class="est-nav"><button class="btn btn-outline" type="button" data-back>Back</button><button class="btn btn-outline" type="button" data-reset>Start over</button><span class="spacer"></span><a class="btn btn-primary" id="eQuote" href="get-a-quote.html">Get my exact quote</a></div>
+            <div class="est-nav"><button class="btn btn-outline" type="button" data-back>Back</button><button class="btn btn-outline" type="button" data-reset>Start over</button><span class="spacer"></span><a class="btn btn-primary" id="eQuote" href="get-a-quote.html#quote">Get my exact quote</a></div>
           </div>
         </div>
       </div>
@@ -667,7 +667,7 @@ home_body = f"""
       <a class="btn btn-primary" href="{WA_MSG}" target="_blank" rel="noopener">{ico("chat")}Message on WhatsApp</a>
       <a class="btn btn-ghost" href="tel:{PHONE1_T}">{ico("phone")}Call (705) 500-8455</a>
     </div>
-    <p class="hero-meta"><span>Mon–Sat, 8 AM – 6 PM · Yellowknife and surrounding areas</span><a href="get-a-quote.html">Get a free quote online →</a></p>
+    <p class="hero-meta"><span>Mon–Sat, 8 AM – 6 PM · Yellowknife and surrounding areas</span><a href="get-a-quote.html#quote">Get a free quote online →</a></p>
   </div>
 </header>
 
@@ -953,7 +953,7 @@ pages.append(page("contact.html", "Contact YK Property Services | Yellowknife",
     "contact", ld=[local_ld], body=page_hero("Contact", ["Let’s talk about", "your property"],
         "Call, message, email or send a quote request. Need multiple things done? Send us your list and we’ll help organize the job.",
         crumbs=[("Contact", None)], seed=14,
-        ctas=f'<a class="btn btn-primary" href="tel:{PHONE1_T}">{ico("phone")}Call {PHONE1}</a><a class="btn btn-ghost" href="{WA_MSG}" target="_blank" rel="noopener">{ico("chat")}WhatsApp</a><a class="btn btn-ghost" href="get-a-quote.html">Get a free quote</a>') + f"""
+        ctas=f'<a class="btn btn-primary" href="tel:{PHONE1_T}">{ico("phone")}Call {PHONE1}</a><a class="btn btn-ghost" href="{WA_MSG}" target="_blank" rel="noopener">{ico("chat")}WhatsApp</a><a class="btn btn-ghost" href="get-a-quote.html#quote">Get a free quote</a>') + f"""
 <main id="main">
   <section class="section">
     <div class="wrap">{tiles}</div>
@@ -994,7 +994,7 @@ pages.append(page("service-areas.html", "Service Area: Yellowknife, NT | YK Prop
         <h2>Yellowknife and surrounding areas</h2>
         <p>Homes, rentals, cabins, multi-unit buildings and commercial properties across Yellowknife, plus nearby communities around the city. Send your property location and project details and the team will confirm availability.</p>
         <p>We work in every part of the city, including <strong>Old Town, Latham Island, Downtown, Frame Lake, Range Lake, Niven Lake and Kam Lake</strong> — from apartment turnovers downtown to cabin opening and closing outside town.</p>
-        <p style="margin-top:1.4rem"><a class="btn btn-primary" href="get-a-quote.html">Check service availability</a></p>
+        <p style="margin-top:1.4rem"><a class="btn btn-primary" href="get-a-quote.html#quote">Check service availability</a></p>
       </div>
       <div class="tiles" style="grid-template-columns:1fr 1fr">
         <div class="tile reveal"><span class="ibox">{ico("clock")}</span><h3>Business hours</h3><p>{HOURS}</p><small>Closed Sundays.</small></div>
@@ -1032,7 +1032,7 @@ simple("thanks.html", "Thanks — Request Received | YK Property Services", "You
     ctas='<a class="btn btn-primary" href="index.html">Back to home</a>', noindex=True)
 simple("404.html", "Page not found | YK Property Services", "This page could not be found.",
     "Page not found", ["This page took", "a wrong turn."], "The page you were looking for isn’t here. Try one of these instead.", """
-      <ul><li><a href="index.html">Home</a></li><li><a href="services.html">All services</a></li><li><a href="get-a-quote.html">Get a free quote</a></li><li><a href="contact.html">Contact</a></li></ul>""",
+      <ul><li><a href="index.html">Home</a></li><li><a href="services.html">All services</a></li><li><a href="get-a-quote.html#quote">Get a free quote</a></li><li><a href="contact.html">Contact</a></li></ul>""",
     ctas='<a class="btn btn-primary" href="index.html">Go to home</a>', extra_head='\n<base href="/">', noindex=True)
 
 # ---------------------------------------------------------------- redirects for the old site's URLs
